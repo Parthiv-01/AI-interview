@@ -1,4 +1,4 @@
-import pymupdf as fitz  # PyMuPDF
+import pymupdf # PyMuPDF
 import logging
 from typing import Union
 
@@ -10,9 +10,9 @@ class PDFTextExtractor:
     def extract_text(self, pdf_input: Union[str, bytes]) -> str:
         try:
             if isinstance(pdf_input, str):
-                doc = fitz.open(pdf_input)
+                doc = pymupdf.open(pdf_input)
             else:
-                doc = fitz.open(stream=pdf_input, filetype="pdf")
+                doc = pymupdf.open(stream=pdf_input, filetype="pdf")
 
             text = ""
             for page in doc:
