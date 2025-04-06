@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 import logging
 from typing import Union
 
