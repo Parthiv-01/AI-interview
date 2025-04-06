@@ -40,11 +40,7 @@ def upload_resume():
 
 def record_audio():
     st.header("🎤 Record Your Answer")
-    audio_file = st.file_uploader(
-        "Upload audio response (MP3/WAV)", 
-        type=["wav", "mp3"],
-        key=f"audio_upload_{st.session_state.current_q}"
-    )
+    audio_file = st.audio_input("Record a voice message")
     
     if audio_file:
         st.session_state.audio_bytes = audio_file.read()
