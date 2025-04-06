@@ -1,11 +1,10 @@
 import streamlit as st
 from utils.pdf_extractor import PDFTextExtractor
 from utils.audio_processor import AudioInterviewer
-import librosa
-import soundfile as sf
 import io
 import uuid
-import os
+import time
+from datetime import datetime
 
 # Initialize components
 pdf_extractor = PDFTextExtractor()
@@ -19,8 +18,8 @@ def init_session():
         "questions": [],
         "responses": [],
         "current_q": 0,
-        "audio_data": None,
-        "sr": 16000
+        "audio_bytes": None,
+        "start_time": None
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -28,31 +27,29 @@ def init_session():
 
 def upload_resume():
     st.header("📄 Upload Resume")
-    pdf = st.file_uploader("Choose PDF file", type="pdf")
+    pdf = st.file_uploader("Choose PDF file", type="pdf", key="resume_upload")
     
     if pdf and not st.session_state.resume_text:
         with st.spinner("Processing resume..."):
             try:
                 st.session_state.resume_text = pdf_extractor.extract_text(pdf)
                 st.success("Resume processed successfully!")
-            except ValueError as e:
-                st.error(str(e) + ". Please upload a text-based PDF.")
+                st.session_state.start_time = datetime.now()
             except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
+                st.error(f"Error processing resume: {str(e)}")
 
 def record_audio():
     st.header("🎤 Record Your Answer")
-    audio_bytes = st.file_uploader("Or upload audio file", type=["wav", "mp3"])
+    audio_file = st.file_uploader(
+        "Upload audio response (MP3/WAV)", 
+        type=["wav", "mp3"],
+        key=f"audio_upload_{st.session_state.current_q}"
+    )
     
-    if audio_bytes:
-        try:
-            audio, sr = librosa.load(io.BytesIO(audio_bytes.read()), sr=16000)
-            st.session_state.audio_data = audio
-            st.session_state.sr = sr
-            st.audio(audio_bytes, format="audio/wav")
-            return True
-        except Exception as e:
-            st.error(f"Error loading audio: {str(e)}")
+    if audio_file:
+        st.session_state.audio_bytes = audio_file.read()
+        st.audio(st.session_state.audio_bytes, format="audio/wav")
+        return True
     return False
 
 def conduct_interview():
@@ -80,12 +77,12 @@ def conduct_interview():
         with st.spinner("Evaluating your response..."):
             evaluation = interviewer.evaluate_response(
                 current_q,
-                st.session_state.audio_data,
-                st.session_state.sr
+                st.session_state.audio_bytes
             )
             
             st.session_state.responses.append({
                 "question": current_q,
+                "timestamp": datetime.now(),
                 "evaluation": evaluation
             })
             
@@ -95,7 +92,7 @@ def conduct_interview():
             st.write(evaluation["feedback"])
             
             # Clear audio for next question
-            st.session_state.audio_data = None
+            st.session_state.audio_bytes = None
             
             # Move to next question or finish
             if st.session_state.current_q < 4:  # Max 5 questions
@@ -105,14 +102,19 @@ def conduct_interview():
                     st.session_state.questions.append(new_question)
                     st.rerun()
             else:
-                st.success("🎉 Interview completed!")
+                duration = (datetime.now() - st.session_state.start_time).total_seconds() / 60
+                st.success(f"🎉 Interview completed in {duration:.1f} minutes!")
                 if st.button("Start New Interview"):
                     st.session_state.clear()
                     init_session()
                     st.rerun()
 
 def main():
-    st.set_page_config(page_title="AI Mock Interview", layout="wide")
+    st.set_page_config(
+        page_title="AI Mock Interview", 
+        page_icon="💼",
+        layout="wide"
+    )
     st.title("🎙️ AI-Powered Mock Interview")
     
     init_session()
